@@ -2,11 +2,30 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Мой билет</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="index.css" />
     <style>
+        /* Дополнительные стили */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background: #fcfcfc;
+            position: relative;
+            overscroll-behavior: none;
+        }
+        
         /* Стили для редактируемых полей */
         .editable {
             cursor: pointer;
@@ -15,6 +34,8 @@
             min-width: 30px;
             transition: all 0.2s ease;
             outline: none;
+            user-select: text;
+            -webkit-user-select: text;
         }
         
         .editable:hover {
@@ -41,6 +62,36 @@
         .button-12:active .background-13 {
             background: #e8e4f5;
             transform: scale(0.96);
+        }
+        
+        /* Исправления для мобильных */
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+        }
+        
+        /* Убираем скроллбар на iOS */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Для безопасных зон iPhone */
+        @supports (padding: max(0px)) {
+            body, .fixed-header, .fixed-footer {
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+            
+            .fixed-header {
+                padding-top: env(safe-area-inset-top);
+                height: calc(53px + env(safe-area-inset-top));
+            }
+            
+            .fixed-footer {
+                padding-bottom: env(safe-area-inset-bottom);
+                height: calc(67px + env(safe-area-inset-bottom));
+            }
         }
     </style>
 </head>
@@ -143,26 +194,68 @@
     </div>
 
     <script>
-        // 1. Реальное время и дата
-        function updateRealTime() {
+        // Храним время входа в переменной
+        let entryTime = null;
+        let entryDate = null;
+        
+        // 1. Сохраняем время входа при загрузке страницы
+        function saveEntryTime() {
             const now = new Date();
             
-            // Время (часы:минуты)
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            document.getElementById('current-time').textContent = `${hours}:${minutes}`;
+            // Проверяем, сохранено ли уже время входа
+            if (!localStorage.getItem('entryTimeSaved')) {
+                // Сохраняем время входа в localStorage
+                entryTime = now;
+                
+                // Сохраняем время и дату в localStorage
+                localStorage.setItem('entryTime', now.getTime()); // сохраняем timestamp
+                localStorage.setItem('entryTimeSaved', 'true');
+                
+                // Время (часы:минуты)
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                localStorage.setItem('displayTime', `${hours}:${minutes}`);
+                
+                // Дата (число месяц)
+                const day = now.getDate();
+                const monthNames = [
+                    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+                ];
+                const month = monthNames[now.getMonth()];
+                localStorage.setItem('displayDate', `${day} ${month}`);
+            }
             
-            // Дата (число месяц)
-            const day = now.getDate();
-            const monthNames = [
-                'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
-            ];
-            const month = monthNames[now.getMonth()];
-            document.getElementById('current-date').textContent = `${day} ${month}`;
+            // Отображаем сохраненное время
+            displaySavedTime();
         }
         
-        // 2. Обратный отсчет 59:00 -> 00:00 -> 59:00
+        // 2. Отображаем сохраненное время
+        function displaySavedTime() {
+            const savedTime = localStorage.getItem('displayTime');
+            const savedDate = localStorage.getItem('displayDate');
+            
+            if (savedTime) {
+                document.getElementById('current-time').textContent = savedTime;
+            }
+            
+            if (savedDate) {
+                document.getElementById('current-date').textContent = savedDate;
+            }
+        }
+        
+        // 3. Сбрасываем время при обновлении страницы
+        function resetOnRefresh() {
+            // Проверяем, был ли уже загружен флаг
+            if (performance.navigation.type === performance.navigation.TYPE_RELOAD ||
+                performance.getEntriesByType("navigation")[0]?.type === 'reload') {
+                localStorage.removeItem('entryTimeSaved');
+                localStorage.removeItem('displayTime');
+                localStorage.removeItem('displayDate');
+            }
+        }
+        
+        // 4. Обратный отсчет 45:00 -> 00:00 -> 45:00
         let countdownMinutes = 45;
         let countdownSeconds = 0;
         
@@ -173,7 +266,7 @@
             // Логика отсчета
             if (countdownSeconds === 0) {
                 if (countdownMinutes === 0) {
-                    // Сбрасываем на 59:00
+                    // Сбрасываем на 45:00
                     countdownMinutes = 45;
                     countdownSeconds = 0;
                 } else {
@@ -189,7 +282,7 @@
             secondsElement.textContent = countdownSeconds.toString().padStart(2, '0');
         }
         
-        // 3. Редактируемые поля
+        // 5. Редактируемые поля
         function setupEditableFields() {
             const editableText = document.getElementById('editable-text');
             const editableNumber = document.getElementById('editable-number');
@@ -249,7 +342,7 @@
             });
         }
         
-        // 4. Интерактивность кнопки "предъявить"
+        // 6. Интерактивность кнопки "предъявить"
         function setupPresentButton() {
             const presentButton = document.getElementById('present-button');
             
@@ -267,14 +360,16 @@
             });
         }
         
-        // 5. Инициализация
+        // 7. Инициализация
         document.addEventListener('DOMContentLoaded', function() {
-            // Реальное время
-            updateRealTime();
-            setInterval(updateRealTime, 60000); // Каждую минуту
+            // Сбрасываем при обновлении
+            resetOnRefresh();
+            
+            // Сохраняем время входа
+            saveEntryTime();
             
             // Обратный отсчет
-            updateCountdown(); // Сразу показываем 59:00
+            updateCountdown(); // Сразу показываем 45:00
             setInterval(updateCountdown, 1000); // Каждую секунду
             
             // Редактируемые поля
@@ -292,11 +387,19 @@
             
             // Добавляем отступы для фиксированных элементов
             adjustForFixedElements();
+            
+            // Предотвращаем масштабирование на iOS
+            document.addEventListener('touchmove', function (e) {
+                if (e.scale !== 1) { e.preventDefault(); }
+            }, { passive: false });
+            
+            // Убираем 300ms задержку на iOS
+            FastClick.attach(document.body);
         });
         
-        // 6. Корректировка отступов для фиксированных элементов
+        // 8. Корректировка отступов для фиксированных элементов
         function adjustForFixedElements() {
-            // Вычисляем высоту фиксированных элементов
+            // Вычисляем высоту фиксированных элементов с учетом safe areas
             const fixedHeader = document.querySelector('.fixed-header');
             const fixedFooter = document.querySelector('.fixed-footer');
             
@@ -309,6 +412,24 @@
                 document.querySelector('.main-container').style.paddingBottom = footerHeight + 'px';
             }
         }
+        
+        // Polyfill для FastClick (упрощенная версия)
+        var FastClick = {
+            attach: function(element) {
+                element.addEventListener('touchstart', function(e) {
+                    if (e.touches.length > 1) return;
+                    var target = e.target;
+                    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+                    e.preventDefault();
+                    var clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                    });
+                    target.dispatchEvent(clickEvent);
+                }, { passive: false });
+            }
+        };
     </script>
 </body>
 </html>
